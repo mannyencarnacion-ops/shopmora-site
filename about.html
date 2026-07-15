@@ -3,76 +3,70 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>About — ShopMora</title>
-<meta name="description" content="ShopMora is a boutique digital marketing studio for businesses of every size. Personal, local, and results-driven.">
+<title>About ShopMora &mdash; A Boutique Digital Marketing Studio</title>
+<meta name="description" content="ShopMora is a boutique digital marketing studio for businesses of every size. Personal, results-driven, and allergic to cookie-cutter packages.">
+<link rel="canonical" href="https://shopmorastore.com/about">
+<meta property="og:type" content="website">
+<meta property="og:title" content="About ShopMora">
+<meta property="og:description" content="A boutique digital marketing studio for businesses that deserve more attention.">
+<meta property="og:url" content="https://shopmorastore.com/about">
+<meta property="og:image" content="https://shopmorastore.com/assets/og-image.jpg">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Lato:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-
+<a href="#main" class="skip">Skip to content</a>
 <header class="site">
   <div class="wrap nav">
     <a class="brand" href="/">ShopMora</a>
-    <nav class="nav-links" id="navlinks">
+    <nav class="nav-links" id="nav" aria-label="Primary">
       <a href="/">Home</a>
       <a href="/services">Services</a>
       <a href="/about">About</a>
       <a href="/contact">Contact</a>
-      <a class="btn btn-primary nav-cta" href="/contact">Get a Free Audit</a>
+      <a class="btn btn-primary" href="/contact">Get a Free Audit</a>
     </nav>
-    <button class="menu-toggle" onclick="document.getElementById('navlinks').classList.toggle('open')" aria-label="Menu">☰</button>
+    <button class="menu-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav">&#9776;</button>
   </div>
 </header>
-
-<section class="hero" style="padding-bottom:40px;">
-  <div class="wrap">
-    <p class="eyebrow">About ShopMora</p>
-    <h1>A boutique studio for businesses that deserve more attention.</h1>
-  </div>
-</section>
-
-<section style="padding-top:20px;">
-  <div class="wrap">
-    <div class="prose">
-      <p>ShopMora was built for the businesses doing real work — the bakery on the corner, the online brand outgrowing its first website, the trades shop with a five-star reputation, the wellness studio competing with national chains, the SaaS startup ready for its first marketing push. You don't need a huge budget or a marketing team. You need someone who genuinely cares and knows what to do next.</p>
-      <p>We're personal, local, and allergic to cookie-cutter packages. Every plan is built around your business, your customers, and the kind of growth you actually want.</p>
-      <p>Whether your customers find you down the street or across the country, we help you show up first — and turn that visibility into growth.</p>
+<main id="main">
+  <section class="hero" style="padding-bottom:56px">
+    <div class="wrap">
+      <p class="eyebrow">About ShopMora</p>
+      <h1>A boutique studio for businesses that deserve more attention.</h1>
     </div>
-    <div class="tag-row" style="margin-top:32px;">
-      <span class="tag">Local SEO Focused</span>
-      <span class="tag">No Long-Term Contracts</span>
-      <span class="tag">Results-Driven</span>
+  </section>
+  <section style="padding-top:24px">
+    <div class="wrap">
+      <div class="prose reveal">
+        <p>ShopMora was built for the businesses doing real work &mdash; the bakery on the corner, the online brand outgrowing its first website, the trades shop with a five-star reputation, the wellness studio competing with national chains, the SaaS startup ready for its first marketing push. You don't need a huge budget or a marketing team. You need someone who genuinely cares and knows what to do next.</p>
+        <p>We're personal, local, and allergic to cookie-cutter packages. Every plan is built around your business, your customers, and the kind of growth you actually want.</p>
+        <p>Whether your customers find you down the street or across the country, we help you show up first &mdash; and turn that visibility into growth.</p>
+      </div>
+      <div class="tag-row reveal" style="margin-top:32px">
+        <span class="tag">Local SEO Focused</span><span class="tag">No Long-Term Contracts</span><span class="tag">Results-Driven</span>
+      </div>
     </div>
-  </div>
-</section>
-
-<section class="band-dark">
-  <div class="wrap">
-    <div class="section-head">
-      <p class="eyebrow">What We Cover</p>
-      <h2>Built for businesses everywhere.</h2>
+  </section>
+  <section class="band-dark">
+    <div class="wrap">
+      <div class="section-head reveal"><p class="eyebrow">What We Cover</p><h2>Built for businesses everywhere.</h2></div>
+      <div class="tag-row reveal">
+        <span class="tag">Local SEO</span><span class="tag">Google Business Profile</span><span class="tag">Map Pack Rankings</span><span class="tag">Reviews &amp; Citations</span><span class="tag">Website Optimization</span><span class="tag">Community Marketing</span>
+      </div>
     </div>
-    <div class="tag-row">
-      <span class="tag">Local SEO</span>
-      <span class="tag">Google Business Profile</span>
-      <span class="tag">Map Pack Rankings</span>
-      <span class="tag">Reviews &amp; Citations</span>
-      <span class="tag">Website Optimization</span>
-      <span class="tag">Community Marketing</span>
+  </section>
+  <section class="cta">
+    <div class="wrap reveal">
+      <h2>Let's talk about your business.</h2>
+      <p>Book a free, no-pressure consultation. We'll review your website, SEO, and social presence and show you exactly what to fix first.</p>
+      <a class="btn btn-primary" href="/contact">Schedule a Free Consultation</a>
     </div>
-  </div>
-</section>
-
-<section class="cta">
-  <div class="wrap">
-    <h2>Let's talk about your business.</h2>
-    <p>Book a free, no-pressure consultation. We'll review your website, SEO, and social presence and show you exactly what to fix first.</p>
-    <a class="btn btn-primary" href="/contact">Schedule a Free Consultation</a>
-  </div>
-</section>
-
+  </section>
+</main>
 <footer class="site">
   <div class="wrap">
     <div class="foot-grid">
@@ -97,9 +91,16 @@
         </ul>
       </div>
     </div>
-    <div class="foot-bottom">© 2026 ShopMora. All rights reserved.</div>
+    <div class="foot-bottom">&copy; <span id="yr"></span> ShopMora. All rights reserved.</div>
   </div>
 </footer>
-
+<script>
+document.getElementById('yr').textContent=new Date().getFullYear();
+(function(){var t=document.querySelector('.menu-toggle'),n=document.getElementById('nav');
+if(t)t.addEventListener('click',function(){var o=n.classList.toggle('open');t.setAttribute('aria-expanded',o)});
+var els=document.querySelectorAll('.reveal');
+if('IntersectionObserver'in window){var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})},{threshold:.12});els.forEach(function(el){io.observe(el)})}
+else{els.forEach(function(el){el.classList.add('in')})}})();
+</script>
 </body>
 </html>
