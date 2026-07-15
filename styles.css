@@ -89,6 +89,8 @@ section{padding:104px 0}
 .tag-row{display:flex;flex-wrap:wrap;gap:12px}
 .tag{background:var(--surface-2);border:1px solid var(--line-soft);border-radius:40px;padding:9px 20px;font-size:.9rem;font-weight:700}
 .band-dark .tag{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.14);color:var(--cream)}
+.band-dark .prose p{color:#e7ddce}
+.band-dark .lead,.band-dark .section-head p{color:#d9cabb}
 .prose{max-width:760px}
 .prose p{font-size:1.14rem;color:var(--muted-1);margin-bottom:20px}
 
