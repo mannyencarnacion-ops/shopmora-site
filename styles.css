@@ -54,9 +54,10 @@ section{padding:104px 0}
 
 /* grid cards */
 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.grid--cards{align-items:start}
 .card{display:flex;flex-direction:column;background:var(--surface-2);border:1px solid var(--line-soft);border-radius:var(--radius);padding:34px 30px;transition:transform .22s ease,box-shadow .22s ease}
 .card .eyebrow{margin-bottom:14px}
-.card-foot{margin-top:auto;padding-top:22px;border-top:1px solid var(--line-soft)}
+.card-foot{margin-top:22px}
 .card:hover{transform:translateY(-4px);box-shadow:var(--shadow)}
 .card h3{font-size:1.55rem;margin-bottom:12px}
 .card p{color:var(--muted-1);font-size:.99rem}
