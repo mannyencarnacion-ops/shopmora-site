@@ -13,26 +13,20 @@
 <link rel="stylesheet" href="styles.css">
 
 <!-- ============================================================
-     GOOGLE ADS CONVERSION TRACKING
-     This page is the conversion trigger: FormSubmit redirects here
-     via the form's _next field only after a successful submission,
-     so reaching this page == one real lead.
+     CONVERSION TRACKING
+     This page IS the conversion trigger. FormSubmit redirects here
+     via the /audit form's _next field only after a successful POST,
+     so a visit to this URL == one real submitted lead.
 
-     PENDING: replace AW-XXXXXXXXX and the send_to label below with
-     the real values from Google Ads > Goals > Conversions > the
-     "Audit Form Submit" conversion action. Until then this block
-     is inert and reports nothing.
+     The Google Ads Smart Campaign measures this natively: the
+     campaign's optimization action is set to "Customers fill out an
+     information form" -> measured on shopmorastore.com/thank-you.
+     No gtag needed while it stays a Smart Campaign.
+
+     If this ever moves to a standard Search campaign, add the Google
+     Ads gtag conversion snippet here (Goals > Conversions > new
+     conversion action -> paste its ID and label).
      ============================================================ -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=AW-XXXXXXXXX"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-  gtag('config', 'AW-XXXXXXXXX');
-  gtag('event', 'conversion', {
-    'send_to': 'AW-XXXXXXXXX/XXXXXXXXXXXXXXXXXXX'
-  });
-</script>
 </head>
 <body>
 <a href="#main" class="skip">Skip to content</a>
