@@ -6,11 +6,23 @@
  * success page. Design rule here: NEVER fake success. If mail fails, the
  * user sees an error and we log it. A lost lead must be loud.
  *
- * Required env vars (Cloudflare Pages > Settings > Variables):
- *   RESEND_API_KEY  - secret, from resend.com
- *   LEAD_TO         - where notifications go (manny.encarnacion@shopmorastore.com)
- *   LEAD_FROM       - verified Resend sender, e.g. "ShopMora <leads@send.shopmorastore.com>"
+ * TWO DELIVERY PATHS, chosen automatically:
+ *   1. Resend  - used when RESEND_API_KEY is set. Sends the notification AND
+ *                the autoresponse to the lead. Preferred.
+ *   2. FormSubmit AJAX - fallback when no key is set. The /ajax/ endpoint is
+ *                the ONE FormSubmit path proven to deliver on this account
+ *                (the regular endpoint silently drops and fakes success).
+ *                No autoresponse - a documented FormSubmit AJAX limitation.
+ *
+ * Adding RESEND_API_KEY later upgrades path 2 -> 1 with no code change.
+ *
+ * Env vars (Cloudflare Pages > Settings > Variables and secrets):
+ *   LEAD_TO         - required. e.g. manny.encarnacion@shopmorastore.com
+ *   RESEND_API_KEY  - optional, secret. Enables Resend + autoresponse.
+ *   LEAD_FROM       - required only with Resend. "ShopMora <leads@send.shopmorastore.com>"
  */
+
+const FORMSUBMIT_TOKEN = '9f8f1ada75380910f503fa74a725fc50';
 
 const ORIGIN = 'https://shopmorastore.com';
 
@@ -72,6 +84,28 @@ or call <strong>508-966-8309</strong> and we&rsquo;ll pick it up from there.</p>
   return new Response(html, { status, headers: { 'Content-Type': 'text/html;charset=utf-8' } });
 }
 
+/**
+ * FormSubmit AJAX fallback. Unlike the regular endpoint, /ajax/ returns real
+ * JSON and does not silently drop. We parse it and THROW on anything that
+ * isn't success:"true" — no fake success is possible here.
+ */
+async function sendViaFormSubmit(fields) {
+  const res = await fetch(`https://formsubmit.co/ajax/${FORMSUBMIT_TOKEN}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(fields)
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`FormSubmit HTTP ${res.status}: ${text.slice(0, 200)}`);
+  let json;
+  try { json = JSON.parse(text); }
+  catch { throw new Error(`FormSubmit non-JSON reply: ${text.slice(0, 200)}`); }
+  if (String(json.success) !== 'true') {
+    throw new Error(`FormSubmit refused: ${text.slice(0, 200)}`);
+  }
+  return json;
+}
+
 async function sendMail(env, payload) {
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -90,7 +124,11 @@ export async function onRequestPost(context) {
   const { request, env } = context;
 
   // Fail loudly on misconfiguration rather than pretending to succeed.
-  for (const k of ['RESEND_API_KEY', 'LEAD_TO', 'LEAD_FROM']) {
+  // The FormSubmit fallback needs NO env vars — its token already encodes the
+  // recipient — so the endpoint works the moment it deploys. Only the Resend
+  // path has requirements.
+  const useResend = Boolean(env.RESEND_API_KEY);
+  for (const k of (useResend ? ['LEAD_TO', 'LEAD_FROM'] : [])) {
     if (!env[k]) {
       console.error(`lead: missing env var ${k}`);
       return errorPage('Our form is misconfigured on our end. This is our fault, not yours.', 500);
@@ -140,26 +178,37 @@ export async function onRequestPost(context) {
     </div>`
   };
 
-  // The notification is the lead. If it fails, tell the user.
+  // The notification IS the lead. If it fails, the user must be told.
   try {
-    await sendMail(env, notify);
+    if (useResend) {
+      await sendMail(env, notify);
+    } else {
+      const fields = Object.fromEntries(
+        Object.entries(data).filter(([k]) => !k.startsWith('_'))
+      );
+      await sendViaFormSubmit({ _subject: form.subject, ...fields });
+    }
   } catch (err) {
-    console.error('lead: notification failed', err.message);
+    console.error('lead: NOTIFICATION FAILED', err.message);
     return errorPage('We could not deliver your message just now.', 502);
   }
 
-  // The autoresponse is a courtesy. If it fails, still count the lead —
-  // but log it loudly so it gets noticed.
-  try {
-    await sendMail(env, {
-      from: env.LEAD_FROM,
-      to: [String(data.email).trim()],
-      reply_to: env.LEAD_TO,
-      subject: form.autoSubject,
-      text: form.autoBody(data)
-    });
-  } catch (err) {
-    console.error('lead: AUTORESPONSE FAILED (lead still captured)', err.message);
+  // The autoresponse is a courtesy and only exists on the Resend path
+  // (FormSubmit's AJAX endpoint does not support it). Never block the lead.
+  if (useResend) {
+    try {
+      await sendMail(env, {
+        from: env.LEAD_FROM,
+        to: [String(data.email).trim()],
+        reply_to: env.LEAD_TO,
+        subject: form.autoSubject,
+        text: form.autoBody(data)
+      });
+    } catch (err) {
+      console.error('lead: AUTORESPONSE FAILED (lead still captured)', err.message);
+    }
+  } else {
+    console.log('lead: autoresponse skipped (FormSubmit AJAX path, no RESEND_API_KEY)');
   }
 
   return Response.redirect(ORIGIN + form.thankYou, 303);
