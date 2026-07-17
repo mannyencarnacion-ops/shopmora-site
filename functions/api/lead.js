@@ -61,7 +61,7 @@ const esc = (s) =>
 
 const isEmail = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(s || '').trim());
 
-function errorPage(msg, status) {
+function errorPage(msg, status, detail) {
   const html = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Something went wrong — ShopMora</title>
@@ -81,7 +81,11 @@ code{background:#f6efe6;padding:2px 6px;border-radius:4px;font-size:.85rem}
 or call <strong>508-966-8309</strong> and we&rsquo;ll pick it up from there.</p>
 <a href="${ORIGIN}/audit">Back to the form</a>
 </div></body></html>`;
-  return new Response(html, { status, headers: { 'Content-Type': 'text/html;charset=utf-8' } });
+  const headers = { 'Content-Type': 'text/html;charset=utf-8' };
+  // Diagnostic breadcrumb: never shown to visitors, but makes failures
+  // inspectable without digging through Pages logs. Keeps failures loud.
+  if (detail) headers['X-Lead-Error'] = String(detail).replace(/[\r\n]+/g, ' ').slice(0, 300);
+  return new Response(html, { status, headers });
 }
 
 /**
@@ -92,7 +96,14 @@ or call <strong>508-966-8309</strong> and we&rsquo;ll pick it up from there.</p>
 async function sendViaFormSubmit(fields) {
   const res = await fetch(`https://formsubmit.co/ajax/${FORMSUBMIT_TOKEN}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      // Browser fetch sends these automatically; Worker fetch does not.
+      // FormSubmit ties submissions to the activated domain, so send them.
+      Origin: ORIGIN,
+      Referer: ORIGIN + '/audit'
+    },
     body: JSON.stringify(fields)
   });
   const text = await res.text();
@@ -190,7 +201,7 @@ export async function onRequestPost(context) {
     }
   } catch (err) {
     console.error('lead: NOTIFICATION FAILED', err.message);
-    return errorPage('We could not deliver your message just now.', 502);
+    return errorPage('We could not deliver your message just now.', 502, err.message);
   }
 
   // The autoresponse is a courtesy and only exists on the Resend path
