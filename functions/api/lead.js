@@ -14,6 +14,13 @@
  *                          deliver on this account; autoresponse is not
  *                          supported there, per their docs.)
  *
+ * !! Cloudflare edge trap: a Pages Function returning any 5xx has its body and
+ * headers REPLACED by Cloudflare's own generic error page. Our branded error
+ * page and X-Lead-Error header both vanish — the exact opposite of failing
+ * loudly. So backend failures return 424 (Failed Dependency): 4xx passes
+ * through untouched, and it honestly means "our upstream mail provider failed".
+ * Never use 5xx here.
+ *
  * Env (Cloudflare Pages > Settings > Variables and secrets) — all optional
  * for the fallback path, which needs no config at all:
  *   RESEND_API_KEY, LEAD_TO, LEAD_FROM
@@ -136,7 +143,7 @@ export async function onRequestPost(context) {
     const useResend = Boolean(env.RESEND_API_KEY);
 
     if (useResend && (!env.LEAD_TO || !env.LEAD_FROM)) {
-      return errorPage('Our form is misconfigured on our end.', 500, 'RESEND_API_KEY set but LEAD_TO/LEAD_FROM missing');
+      return errorPage('Our form is misconfigured on our end.', 424, 'RESEND_API_KEY set but LEAD_TO/LEAD_FROM missing');
     }
 
     let data;
@@ -192,7 +199,7 @@ export async function onRequestPost(context) {
       }
     } catch (e) {
       console.error('lead: NOTIFICATION FAILED', e && e.message);
-      return errorPage('We could not deliver your message just now.', 502, e && e.message);
+      return errorPage('We could not deliver your message just now.', 424, e && e.message);
     }
 
     // --- autoresponse: courtesy only, never blocks the lead ---
@@ -213,7 +220,7 @@ export async function onRequestPost(context) {
     return redirectTo(form.thankYou);
   } catch (e) {
     console.error('lead: UNHANDLED', e && e.stack);
-    return errorPage('Something broke on our end.', 500, 'unhandled: ' + (e && e.message));
+    return errorPage('Something broke on our end.', 424, 'unhandled: ' + (e && e.message));
   }
 }
 
@@ -237,7 +244,7 @@ export async function onRequestGet(context) {
       );
     } catch (e) {
       return new Response('SELFTEST FAILED after ' + (Date.now() - started) + 'ms\n' + (e && e.message), {
-        status: 500,
+        status: 424,
         headers: { 'Content-Type': 'text/plain', 'Cache-Control': 'no-store' }
       });
     }
