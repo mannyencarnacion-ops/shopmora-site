@@ -13,20 +13,26 @@
 <link rel="stylesheet" href="styles.css">
 
 <!-- ============================================================
-     CONVERSION TRACKING
-     This page IS the conversion trigger. FormSubmit redirects here
-     via the /audit form's _next field only after a successful POST,
-     so a visit to this URL == one real submitted lead.
+     CONVERSION TRACKING  (updated 2026-07-17)
+     This page IS the conversion trigger. /api/lead (Cloudflare Pages
+     Function -> Resend) issues a 303 redirect here ONLY after the
+     audit form's mail send actually succeeds, so a visit to this URL
+     == one real delivered lead. Never point a conversion at /audit.
 
-     The Google Ads Smart Campaign measures this natively: the
-     campaign's optimization action is set to "Customers fill out an
-     information form" -> measured on shopmorastore.com/thank-you.
-     No gtag needed while it stays a Smart Campaign.
-
-     If this ever moves to a standard Search campaign, add the Google
-     Ads gtag conversion snippet here (Goals > Conversions > new
-     conversion action -> paste its ID and label).
+     Google Ads account 448-958-2143.
+     Conversion action: "Audit Form Submit"
+     Source: Google Ads tag directly (NOT GA4 - the account's two
+     default goals are sourced from a stray GA4 property inside the
+     rickscleanworks account and are "Needs attention"; do not use them).
      ============================================================ -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=AW-18323930301"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'AW-18323930301');
+  gtag('event', 'conversion', {'send_to': 'AW-18323930301/Nq1VCIPUl9IcEL35w6FE'});
+</script>
 </head>
 <body>
 <a href="#main" class="skip">Skip to content</a>
