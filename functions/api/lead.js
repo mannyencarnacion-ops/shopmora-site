@@ -1,18 +1,22 @@
 /**
  * ShopMora lead handler — Cloudflare Pages Function
- * Route: /api/lead   (both site forms POST here)
+ * Route: /api/lead (both site forms POST here)
  *
- * Replaces FormSubmit's regular endpoint, which returned a cheerful
- * "Thanks!" page while silently discarding leads. The rule here is simple:
- * NEVER fake success. Every failure returns a real error page, sets an
- * X-Lead-Error header, and logs. A lost lead must be loud.
+ * Replaces FormSubmit, which returned a cheerful "Thanks!" page while silently
+ * discarding leads. The rule here is simple: NEVER fake success. Every failure
+ * returns a real error page, sets an X-Lead-Error header, and logs. A lost lead
+ * must be loud.
  *
- * Delivery:
- *   RESEND_API_KEY set  -> Resend. Notification + autoresponse to the lead.
- *   otherwise           -> FormSubmit /ajax/ endpoint. Notification only.
- *                          (/ajax/ is the only FormSubmit path proven to
- *                          deliver on this account; autoresponse is not
- *                          supported there, per their docs.)
+ * Delivery: Resend, and only Resend.
+ *
+ *   2026-08-07 — the FormSubmit fallback was REMOVED, and the reason matters.
+ *   The old code fell back to FormSubmit whenever RESEND_API_KEY was unset, and
+ *   the selftest route ALWAYS exercised FormSubmit regardless of which provider
+ *   production actually used. So `?selftest=1` reported "FormSubmit refused"
+ *   on a site whose real leads were delivering through Resend perfectly well.
+ *   A diagnostic that tests a path production does not use is worse than no
+ *   diagnostic: it manufactures false alarms and hides real ones. There is now
+ *   exactly one delivery path, and the selftest exercises that same path.
  *
  * !! Cloudflare edge trap: a Pages Function returning any 5xx has its body and
  * headers REPLACED by Cloudflare's own generic error page. Our branded error
@@ -21,14 +25,12 @@
  * through untouched, and it honestly means "our upstream mail provider failed".
  * Never use 5xx here.
  *
- * Env (Cloudflare Pages > Settings > Variables and secrets) — all optional
- * for the fallback path, which needs no config at all:
- *   RESEND_API_KEY, LEAD_TO, LEAD_FROM
+ * Env (Cloudflare Pages > Settings > Variables and secrets) — ALL THREE REQUIRED.
+ * Env binds only on a new build, so redeploy after changing any of them:
+ *   RESEND_API_KEY (Secret), LEAD_TO, LEAD_FROM
  */
 
 const ORIGIN = 'https://shopmorastore.com';
-const FORMSUBMIT_TOKEN = '9f8f1ada75380910f503fa74a725fc50';
-const FORMSUBMIT_URL = 'https://formsubmit.co/ajax/' + FORMSUBMIT_TOKEN;
 
 const FORMS = {
   audit: {
@@ -100,25 +102,11 @@ function redirectTo(path) {
   });
 }
 
-/** FormSubmit AJAX. Returns real JSON; we throw on anything but success. */
-async function sendViaFormSubmit(fields) {
-  const res = await fetch(FORMSUBMIT_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify(fields)
+/** Which env vars are missing. Names only — never the values. */
+function missingEnv(env) {
+  return ['RESEND_API_KEY', 'LEAD_TO', 'LEAD_FROM'].filter(function (k) {
+    return !String(env[k] == null ? '' : env[k]).trim();
   });
-  const text = await res.text();
-  if (!res.ok) throw new Error('FormSubmit HTTP ' + res.status + ': ' + text.slice(0, 200));
-  let json;
-  try {
-    json = JSON.parse(text);
-  } catch (e) {
-    throw new Error('FormSubmit non-JSON: ' + text.slice(0, 200));
-  }
-  if (String(json.success) !== 'true') {
-    throw new Error('FormSubmit refused: ' + text.slice(0, 200));
-  }
-  return json;
 }
 
 async function sendViaResend(env, payload) {
@@ -140,10 +128,15 @@ export async function onRequestPost(context) {
   try {
     const request = context.request;
     const env = context.env || {};
-    const useResend = Boolean(env.RESEND_API_KEY);
 
-    if (useResend && (!env.LEAD_TO || !env.LEAD_FROM)) {
-      return errorPage('Our form is misconfigured on our end.', 424, 'RESEND_API_KEY set but LEAD_TO/LEAD_FROM missing');
+    // No provider, no silent fallback. Fail loudly and show the human a phone number.
+    const missingVars = missingEnv(env);
+    if (missingVars.length) {
+      return errorPage(
+        'Our form is misconfigured on our end.',
+        424,
+        'missing env: ' + missingVars.join(', ')
+      );
     }
 
     let data;
@@ -177,44 +170,36 @@ export async function onRequestPost(context) {
 
     // --- the notification IS the lead ---
     try {
-      if (useResend) {
-        const rows = Object.keys(clean).map(function (k) {
-          return '<tr><td style="padding:8px 14px;border:1px solid #ddd0c0;font-weight:700;text-transform:capitalize">' +
-            esc(k) + '</td><td style="padding:8px 14px;border:1px solid #ddd0c0">' + esc(clean[k]) + '</td></tr>';
-        }).join('');
-        await sendViaResend(env, {
-          from: env.LEAD_FROM,
-          to: [env.LEAD_TO],
-          reply_to: String(data.email).trim(),
-          subject: form.subject,
-          html: '<div style="font-family:system-ui,sans-serif;color:#2a170a">' +
-            '<h2>New ' + esc(data._form || 'contact') + ' lead</h2>' +
-            '<table style="border-collapse:collapse;margin:16px 0">' + rows + '</table>' +
-            '<p style="color:#5a4636;font-size:12px">' + esc(new Date().toISOString()) + '</p></div>'
-        });
-      } else {
-        const fields = { _subject: form.subject };
-        Object.keys(clean).forEach(function (k) { fields[k] = clean[k]; });
-        await sendViaFormSubmit(fields);
-      }
+      const rows = Object.keys(clean).map(function (k) {
+        return '<tr><td style="padding:8px 14px;border:1px solid #ddd0c0;font-weight:700;text-transform:capitalize">' +
+          esc(k) + '</td><td style="padding:8px 14px;border:1px solid #ddd0c0">' + esc(clean[k]) + '</td></tr>';
+      }).join('');
+      await sendViaResend(env, {
+        from: env.LEAD_FROM,
+        to: [env.LEAD_TO],
+        reply_to: String(data.email).trim(),
+        subject: form.subject,
+        html: '<div style="font-family:system-ui,sans-serif;color:#2a170a">' +
+          '<h2>New ' + esc(data._form || 'contact') + ' lead</h2>' +
+          '<table style="border-collapse:collapse;margin:16px 0">' + rows + '</table>' +
+          '<p style="color:#5a4636;font-size:12px">' + esc(new Date().toISOString()) + '</p></div>'
+      });
     } catch (e) {
       console.error('lead: NOTIFICATION FAILED', e && e.message);
       return errorPage('We could not deliver your message just now.', 424, e && e.message);
     }
 
     // --- autoresponse: courtesy only, never blocks the lead ---
-    if (useResend) {
-      try {
-        await sendViaResend(env, {
-          from: env.LEAD_FROM,
-          to: [String(data.email).trim()],
-          reply_to: env.LEAD_TO,
-          subject: form.autoSubject,
-          text: form.autoBody(data)
-        });
-      } catch (e) {
-        console.error('lead: AUTORESPONSE FAILED (lead still captured)', e && e.message);
-      }
+    try {
+      await sendViaResend(env, {
+        from: env.LEAD_FROM,
+        to: [String(data.email).trim()],
+        reply_to: env.LEAD_TO,
+        subject: form.autoSubject,
+        text: form.autoBody(data)
+      });
+    } catch (e) {
+      console.error('lead: AUTORESPONSE FAILED (lead still captured)', e && e.message);
     }
 
     return redirectTo(form.thankYou);
@@ -227,26 +212,47 @@ export async function onRequestPost(context) {
 export async function onRequestGet(context) {
   const url = new URL(context.request.url);
 
-  // /api/lead?selftest=1 — exercises the live delivery path and reports the
-  // raw result as plain text. Diagnosable without digging through logs.
+  // /api/lead?selftest=1 — exercises THE SAME delivery path production uses and
+  // reports the raw upstream result as plain text. Diagnosable without digging
+  // through logs, and it cannot pass while real leads fail, or fail while they work.
   if (url.searchParams.get('selftest') === '1') {
+    const env = context.env || {};
     const started = Date.now();
+
+    const missingVars = missingEnv(env);
+    if (missingVars.length) {
+      return new Response(
+        'SELFTEST FAILED: missing env vars: ' + missingVars.join(', ') + '\n' +
+        'Set them in Cloudflare Pages > Settings > Variables and secrets, then REDEPLOY.\n' +
+        'Env binds only on a new build.',
+        { status: 424, headers: { 'Content-Type': 'text/plain', 'Cache-Control': 'no-store' } }
+      );
+    }
+
     try {
-      const r = await sendViaFormSubmit({
-        _subject: 'ShopMora selftest (/api/lead?selftest=1)',
-        name: 'Selftest',
-        email: 'manny.encarnacion@shopmorastore.com',
-        website: 'shopmorastore.com'
+      const raw = await sendViaResend(env, {
+        from: env.LEAD_FROM,
+        to: [env.LEAD_TO],
+        subject: 'ShopMora selftest (/api/lead?selftest=1)',
+        text:
+          'This is the /api/lead selftest. It used the same Resend path a real lead uses.\n' +
+          'If you are reading this in your inbox, lead delivery is working end to end.\n' +
+          'Sent ' + new Date().toISOString()
       });
       return new Response(
-        'SELFTEST OK in ' + (Date.now() - started) + 'ms\n' + JSON.stringify(r),
+        'SELFTEST OK in ' + (Date.now() - started) + 'ms\n' +
+        'provider: resend\n' +
+        'to: ' + env.LEAD_TO + '\n' +
+        raw,
         { status: 200, headers: { 'Content-Type': 'text/plain', 'Cache-Control': 'no-store' } }
       );
     } catch (e) {
-      return new Response('SELFTEST FAILED after ' + (Date.now() - started) + 'ms\n' + (e && e.message), {
-        status: 424,
-        headers: { 'Content-Type': 'text/plain', 'Cache-Control': 'no-store' }
-      });
+      return new Response(
+        'SELFTEST FAILED after ' + (Date.now() - started) + 'ms\n' +
+        'provider: resend\n' +
+        (e && e.message),
+        { status: 424, headers: { 'Content-Type': 'text/plain', 'Cache-Control': 'no-store' } }
+      );
     }
   }
 
