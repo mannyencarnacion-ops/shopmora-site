@@ -48,9 +48,16 @@ section{padding:104px 0}
 
 /* trust strip */
 .trust{background:var(--surface);border-block:1px solid var(--line-soft);padding:26px 0}
-.trust .wrap{display:flex;gap:14px 40px;justify-content:center;flex-wrap:wrap;align-items:center}
-.trust span{font-size:.82rem;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--brown-deep)}
+.trust .wrap{display:flex;gap:12px 28px;justify-content:center;flex-wrap:nowrap;align-items:center}
+.trust span{font-size:.78rem;letter-spacing:.11em;text-transform:uppercase;font-weight:700;color:var(--brown-deep);white-space:nowrap}
 .trust .dot{color:var(--line);font-weight:400}
+@media(max-width:1120px){
+  .trust .wrap{display:grid;grid-template-columns:repeat(2,auto);gap:14px 40px;justify-content:center;justify-items:center}
+  .trust .dot{display:none}
+}
+@media(max-width:560px){
+  .trust .wrap{grid-template-columns:auto;gap:12px;justify-items:center}
+}
 
 /* grid cards */
 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
