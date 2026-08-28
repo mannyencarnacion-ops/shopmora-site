@@ -109,5 +109,6 @@ var els=document.querySelectorAll('.reveal');
 if('IntersectionObserver'in window){var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})},{threshold:.12});els.forEach(function(el){io.observe(el)})}
 else{els.forEach(function(el){el.classList.add('in')})}})();
 </script>
+<!-- Cloudflare Web Analytics --><script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "fbd0f60b4d534833815ce42ae4a2dd2b"}'></script><!-- End Cloudflare Web Analytics -->
 </body>
 </html>
