@@ -28,6 +28,15 @@
  * Env (Cloudflare Pages > Settings > Variables and secrets) — ALL THREE REQUIRED.
  * Env binds only on a new build, so redeploy after changing any of them:
  *   RESEND_API_KEY (Secret), LEAD_TO, LEAD_FROM
+ *
+ * Optional (bot check, added 2026-10-02):
+ *   TURNSTILE_SECRET (Secret) — Cloudflare Turnstile secret key for the widget on
+ *   contact.html + audit.html. Bots were filling the forms with other people's
+ *   email addresses, and the autoresponse was mailing those people from our
+ *   domain. Rule: FLAG, NEVER DROP. Every submission still reaches LEAD_TO. A
+ *   failed/missing bot check or a spam pattern only (a) tags the subject and
+ *   (b) skips the autoresponse. If TURNSTILE_SECRET is unset, the subject says
+ *   "[Bot check off]" and no autoresponse goes out.
  */
 
 const ORIGIN = 'https://shopmorastore.com';
@@ -123,6 +132,47 @@ async function sendViaResend(env, payload) {
   return text;
 }
 
+// Known bot wording (see vault Memory/site-form-lead-triage.md).
+const BOT_PHRASES = [
+  'i would like more information. please contact me by email'
+];
+
+/** Reasons this submission looks like spam. Empty array = looks normal. */
+function spamReasons(data) {
+  const reasons = [];
+  const email = String(data.email || '').trim().toLowerCase();
+  const text = ['message', 'business', 'name'].map(function (k) {
+    return String(data[k] == null ? '' : data[k]);
+  }).join(' ').toLowerCase();
+
+  if (/@shopmorastore\.com$/.test(email)) reasons.push('uses our own domain');
+  // Message field only: real people type their own site into "business".
+  if (/https?:\/\/|www\./i.test(String(data.message || ''))) reasons.push('link in message');
+  if (BOT_PHRASES.some(function (p) { return text.indexOf(p) !== -1; })) reasons.push('known bot wording');
+  return reasons;
+}
+
+/** Verify a Turnstile token server-side. Returns 'pass' | 'fail' | 'off' | 'missing'. */
+async function checkTurnstile(env, token, ip) {
+  if (!String(env.TURNSTILE_SECRET || '').trim()) return 'off';
+  if (!String(token || '').trim()) return 'missing';
+  try {
+    const body = new FormData();
+    body.append('secret', env.TURNSTILE_SECRET);
+    body.append('response', token);
+    if (ip) body.append('remoteip', ip);
+    const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      body: body
+    });
+    const out = await res.json();
+    return out && out.success ? 'pass' : 'fail';
+  } catch (e) {
+    console.error('lead: turnstile verify error', e && e.message);
+    return 'fail';
+  }
+}
+
 export async function onRequestPost(context) {
   // Top-level guard: nothing escapes as an opaque platform 502.
   try {
@@ -163,9 +213,22 @@ export async function onRequestPost(context) {
       return errorPage('That email address does not look right.', 400, 'bad email');
     }
 
+    const bot = await checkTurnstile(
+      env,
+      data['cf-turnstile-response'],
+      request.headers.get('CF-Connecting-IP')
+    );
+    const spam = spamReasons(data);
+    let tag = '';
+    if (spam.length) tag = '[Likely spam] ';
+    else if (bot === 'off') tag = '[Bot check off] ';
+    else if (bot === 'missing') tag = '[Bot check skipped] ';
+    else if (bot === 'fail') tag = '[Bot check failed] ';
+    const sendAuto = bot === 'pass' && !spam.length;
+
     const clean = {};
     Object.keys(data).forEach(function (k) {
-      if (k.charAt(0) !== '_') clean[k] = data[k];
+      if (k.charAt(0) !== '_' && k !== 'cf-turnstile-response') clean[k] = data[k];
     });
 
     // --- the notification IS the lead ---
@@ -178,9 +241,12 @@ export async function onRequestPost(context) {
         from: env.LEAD_FROM,
         to: [env.LEAD_TO],
         reply_to: String(data.email).trim(),
-        subject: form.subject,
+        subject: tag + form.subject,
         html: '<div style="font-family:system-ui,sans-serif;color:#2a170a">' +
           '<h2>New ' + esc(data._form || 'contact') + ' lead</h2>' +
+          '<p style="color:#5a4636;font-size:13px">Bot check: ' + esc(bot) +
+          (spam.length ? ' &middot; Flagged: ' + esc(spam.join(', ')) : '') +
+          (sendAuto ? ' &middot; Auto-reply sent' : ' &middot; No auto-reply sent') + '</p>' +
           '<table style="border-collapse:collapse;margin:16px 0">' + rows + '</table>' +
           '<p style="color:#5a4636;font-size:12px">' + esc(new Date().toISOString()) + '</p></div>'
       });
@@ -190,7 +256,9 @@ export async function onRequestPost(context) {
     }
 
     // --- autoresponse: courtesy only, never blocks the lead ---
-    try {
+    // Only to people who passed the bot check and weren't flagged. Bots submit
+    // other people's addresses; we must not mail strangers from our domain.
+    if (sendAuto) try {
       await sendViaResend(env, {
         from: env.LEAD_FROM,
         to: [String(data.email).trim()],
