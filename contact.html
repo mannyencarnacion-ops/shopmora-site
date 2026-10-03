@@ -22,6 +22,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Lato:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 </head>
 <body>
 <a href="#main" class="skip">Skip to content</a>
@@ -58,6 +59,7 @@
           <div class="field"><label for="email">Email</label><input id="email" name="email" type="email" inputmode="email" autocomplete="email" placeholder="e.g. jane@email.com" spellcheck="false" required></div>
           <div class="field"><label for="business">Business name &amp; website</label><input id="business" name="business" type="text" autocomplete="organization" placeholder="e.g. Joe's Plumbing - joesplumbing.com"></div>
           <div class="field"><label for="message">What would you like help with?</label><textarea id="message" name="message" required></textarea></div>
+          <div class="cf-turnstile" data-sitekey="0x4AAAAAAFMafyIJkudBFLgu" data-appearance="interaction-only"></div>
           <button type="submit" class="btn btn-primary">Request My Free Audit</button>
         </form>
         <div class="contact-info reveal">
